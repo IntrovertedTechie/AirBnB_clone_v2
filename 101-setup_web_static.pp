@@ -32,9 +32,10 @@ file { '/data/web_static/shared':
 file { '/data/web_static/releases/test/index.html':
     ensure => file,
     mode => '0644',
-    content => '',
+    content => "Hello Nginx!\n",
     require => File['/data/web_static/releases/test'],
-}
+    }
+
 
 
 
