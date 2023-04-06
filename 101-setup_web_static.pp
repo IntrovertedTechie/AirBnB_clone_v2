@@ -1,62 +1,116 @@
-# Script that configures Nginx server with some folders and files
+ #!/usr/bin/env bash
 
-exec {'update':
-  provider => shell,
-  command  => 'sudo apt-get -y update',
-  before   => Exec['install Nginx'],
+exec { 'update apt-get':
+    command => '/usr/bin/apt-get -y update > /dev/null',
+    path    => ['/bin', '/usr/bin'],
+    unless  => '/usr/bin/dpkg-query -W --showformat=\'\${Status}\\n\' nginx | /bin/grep -q "install ok installed"',
 }
 
-exec {'install Nginx':
-  provider => shell,
-  command  => 'sudo apt-get -y install nginx',
-  before   => Exec['start Nginx'],
+package { 'nginx':
+    ensure  => installed,
+    require => Exec['update apt-get'],
+}
+file { '/data/web_static/releases':
+  ensure => directory,
+  mode   => '0755',
 }
 
-exec {'start Nginx':
-  provider => shell,
-  command  => 'sudo service nginx start',
-  before   => Exec['create first directory'],
+file { '/data/web_static/releases/test':
+    ensure => directory,
+    mode => '0755',
+    recurse => true,
+    require => File['/data/web_static/releases'],
 }
 
-exec {'create first directory':
-  provider => shell,
-  command  => 'sudo mkdir -p /data/web_static/releases/test/',
-  before   => Exec['create second directory'],
+file { '/data/web_static/shared':
+    ensure => directory,
+    mode => '0755',
+    recurse => true,
+    require => File['/data/web_static'],
 }
 
-exec {'create second directory':
-  provider => shell,
-  command  => 'sudo mkdir -p /data/web_static/shared/',
-  before   => Exec['content into html'],
+file { '/data/web_static/releases/test/index.html':
+    ensure => file,
+    mode => '0644',
+    content => '',
+    require => File['/data/web_static/releases/test'],
 }
 
-exec {'content into html':
-  provider => shell,
-  command  => 'echo "Holberton School" | sudo tee /data/web_static/releases/test/index.html',
-  before   => Exec['symbolic link'],
+
+
+file { '/data/web_static/current':
+    ensure  => link,
+    target  => '/data/web_static/releases/test',
+    require => File['/data/web_static'],
+    before  => File['/etc/nginx/sites-enabled/default'],
 }
 
-exec {'symbolic link':
-  provider => shell,
-  command  => 'sudo ln -sf /data/web_static/releases/test/ /data/web_static/current',
-  before   => Exec['put location'],
+file { '/data/web_static':
+    ensure => directory,
 }
 
-exec {'put location':
-  provider => shell,
-  command  => 'sudo sed -i \'38i\\tlocation /hbnb_static/ {\n\t\talias /data/web_static/current/;\n\t\tautoindex off;\n\t}\n\' /etc/nginx/sites-available/default',
-  before   => Exec['restart Nginx'],
+file { '/etc/nginx/sites-enabled/default':
+    ensure  => file,
+    content => '
+        server {
+            listen 80;
+            listen [::]:80 default_server;
+
+            root /var/www/html;
+
+            index index.html index.htm;
+
+            server_name _;
+
+            location /redirect_me {
+                return 301 http://talenthive.tech/;
+            }
+
+            location /hbnb_static {
+                alias /data/web_static/current/;
+                index index.html index.htm;
+            }
+
+            error_page 404 /404.html;
+            location /404 {
+                internal;
+                root /usr/share/nginx/html;
+            }
+        }
+    ',
+    require => File['/data/web_static/current'],
+    notify  => Service['nginx'],
 }
 
-exec {'restart Nginx':
-  provider => shell,
-  command  => 'sudo service nginx restart',
-  before   => File['/data/']
+
+
+
+exec { 'change ownership of /data directory':
+    command => '/bin/chown -R ubuntu:ubuntu /data',
+    unless => '/usr/bin/test "$(stat -c %U:%G /data)" = "ubuntu:ubuntu"',
 }
 
-file {'/data/':
-  ensure  => directory,
-  owner   => 'ubuntu',
-  group   => 'ubuntu',
-  recurse => true,
+
+$config_file = '/etc/nginx/sites-available/talenthive.tech'
+$content_dir = '/data/web_static/current'
+$url_path = '/hbnb_static'
+
+
+
+$file_content = "server {\n  listen 80;\n  server_name talenthive.tech;\n  location $url_path {\n    alias $content_dir;\n    index index.html;\n  }\n}"
+
+file { $config_file:
+    content => $file_content,
+    require => Package['nginx'],
 }
+
+service { 'nginx':
+    ensure => running,
+    enable => true,
+    require => File[$config_file],
+    subscribe => File[$config_file],
+}
+
+
+
+
