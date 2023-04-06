@@ -27,8 +27,28 @@ ln -s /data/web_static/releases/test/ /data/web_static/current
 # Give ownership of the /data/ folder to the ubuntu user and group
 chown -R ubuntu:ubuntu /data/
 
-# Configure Nginx to serve web_static content
-new_string="location /hbnb_static/ {\n\talias /data/web_static/current/;\n}"
-sed -i "/^\s*location \/ {/a $new_string" /etc/nginx/sites-available/default
+# Define variables
+config_file="/etc/nginx/sites-available/talenthive.tech"
+content_dir="/data/web_static/current"
+url_path="/hbnb_static"
+
+# Update Nginx configuration file
+cat > $config_file <<EOF
+server {
+    listen 80;
+    server_name talenthive.tech;
+
+    location $url_path {
+        alias $content_dir;
+        index index.html;
+    }
+}
+EOF
+
+# Restart Nginx
+sudo service nginx restart
+
+
+
 service nginx restart
 
