@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 Distributes an archive to your web servers using the function do_deploy.
@@ -6,9 +8,9 @@ Distributes an archive to your web servers using the function do_deploy.
 import os
 from fabric.api import env, put, run
 
-env.hosts = ['54.85.99.227', '100.25.198.209']
-env.user = 'ubuntu'  
-env.key_filename = '/home/ubuntu/.ssh/school'  # replace with your own SSH key path
+env.hosts = ['<IP web-01>', '<IP web-02>']
+env.user = '<username>'  # replace with your own username
+env.key_filename = '/path/to/your/ssh/private/key'  # replace with your own SSH key path
 
 
 def do_deploy(archive_path):
