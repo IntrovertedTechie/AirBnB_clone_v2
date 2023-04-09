@@ -34,4 +34,3 @@ def do_clean(number=0):
 
 if __name__ == "__main__":
     do_clean()
-
