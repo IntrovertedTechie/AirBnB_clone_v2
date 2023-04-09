@@ -1,26 +1,36 @@
 #!/usr/bin/python3
-""" Function that deploys """
-from fabric.api import *
+"""
+Fabric script that deletes out-of-date archives
+"""
+from fabric.context_managers import lcd, cd
+from fabric.api import local, run
 
 
 env.hosts = ['54.85.99.227', '100.25.198.209']
-env.user = "ubuntu"
-env.key_filename = '/path/to/ssh/key'
+env.user = 'ubuntu'
+env.key_filename = '/home/ubuntu/.ssh/school'
+
 
 def do_clean(number=0):
-    """Deletes out-of-date archives"""
+    """
+    Deletes out-of-date archives.
+    """
+    try:
+        number = int(number)
+    except ValueError:
+        return None
 
-    number = int(number)
-
-    if number == 0 or number == 1:
+    if number < 1:
         number = 1
-    else:
-        number += 1
 
     with lcd("versions"):
-        local("ls -t | tail -n +{} | xargs -d '\n' rm -rf --".format(number))
+        local("ls -1t | tail -n +{} | xargs -I {{}} rm -- {{}}"
+              .format(number + 1))
 
-    path = '/data/web_static/releases'
-    with cd(path):
-        run("ls -t | tail -n +{} | xargs -d '\n' rm -rf --".format(number))
+    with cd("/data/web_static/releases"):
+        run("ls -1t | tail -n +{} | xargs -I {{}} rm -rf -- {{}}"
+            .format(number + 1))
 
+
+if __name__ == "__main__":
+    do_clean()
