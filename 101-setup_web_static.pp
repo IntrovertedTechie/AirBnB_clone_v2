@@ -1,117 +1,88 @@
- #!/usr/bin/env bash
+# Configures a web server for deployment of web_static.
 
-exec { 'update apt-get':
-    command => '/usr/bin/apt-get -y update > /dev/null',
-    path    => ['/bin', '/usr/bin'],
-    unless  => '/usr/bin/dpkg-query -W --showformat=\'\${Status}\\n\' nginx | /bin/grep -q "install ok installed"',
-}
+# Nginx configuration file
+$nginx_conf = "server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    add_header X-Served-By ${hostname};
+    root   /var/www/html;
+    index  index.html index.htm;
+    location /hbnb_static {
+        alias /data/web_static/current;
+        index index.html index.htm;
+    }
+    location /redirect_me {
+        return 301 http://talenthive.tech/;
+    }
+    error_page 404 /404.html;
+    location /404 {
+      root /var/www/html;
+      internal;
+    }
+}"
 
 package { 'nginx':
-    ensure  => installed,
-    require => Exec['update apt-get'],
-}
-file { '/data/web_static/releases':
-  ensure => directory,
-  mode   => '0755',
-}
+  ensure   => 'present',
+  provider => 'apt'
+} ->
 
-file { '/data/web_static/releases/test':
-    ensure => directory,
-    mode => '0755',
-    recurse => true,
-    require => File['/data/web_static/releases'],
-}
-
-file { '/data/web_static/shared':
-    ensure => directory,
-    mode => '0755',
-    recurse => true,
-    require => File['/data/web_static'],
-}
-
-file { '/data/web_static/releases/test/index.html':
-    ensure => file,
-    mode => '0644',
-    content => "Holberton\n",
-    require => File['/data/web_static/releases/test'],
-    }
-
-
-
-
-file { '/data/web_static/current':
-    ensure  => link,
-    target  => '/data/web_static/releases/test',
-    require => File['/data/web_static'],
-    before  => File['/etc/nginx/sites-enabled/default'],
-}
+file { '/data':
+  ensure  => 'directory'
+} ->
 
 file { '/data/web_static':
-    ensure => directory,
+  ensure => 'directory'
+} ->
+
+file { '/data/web_static/releases':
+  ensure => 'directory'
+} ->
+
+file { '/data/web_static/releases/test':
+  ensure => 'directory'
+} ->
+
+file { '/data/web_static/shared':
+  ensure => 'directory'
+} ->
+
+file { '/data/web_static/releases/test/index.html':
+  ensure  => 'present',
+  content => "Holberton School Puppet\n"
+} ->
+
+file { '/data/web_static/current':
+  ensure => 'link',
+  target => '/data/web_static/releases/test'
+} ->
+
+exec { 'chown -R ubuntu:ubuntu /data/':
+  path => '/usr/bin/:/usr/local/bin/:/bin/'
 }
 
-file { '/etc/nginx/sites-enabled/default':
-    ensure  => file,
-    content => '
-        server {
-            listen 80;
-            listen [::]:80 default_server;
+file { '/var/www':
+  ensure => 'directory'
+} ->
 
-            root /var/www/html;
+file { '/var/www/html':
+  ensure => 'directory'
+} ->
 
-            index index.html index.htm;
+file { '/var/www/html/index.html':
+  ensure  => 'present',
+  content => "Holberton School Nginx\n"
+} ->
 
-            server_name _;
+file { '/var/www/html/404.html':
+  ensure  => 'present',
+  content => "Ceci n'est pas une page\n"
+} ->
 
-            location /redirect_me {
-                return 301 http://talenthive.tech/;
-            }
+file { '/etc/nginx/sites-available/default':
+  ensure  => 'present',
+  content => $nginx_conf
+} ->
 
-            location /hbnb_static {
-                alias /data/web_static/current/;
-                index index.html index.htm;
-            }
-
-            error_page 404 /404.html;
-            location /404 {
-                internal;
-                root /usr/share/nginx/html;
-            }
-        }
-    ',
-    require => File['/data/web_static/current'],
-    notify  => Service['nginx'],
+exec { 'nginx restart':
+  path => '/etc/init.d/'
 }
-
-
-
-
-exec { 'change ownership of /data directory':
-    command => '/bin/chown -R ubuntu:ubuntu /data',
-    unless => '/usr/bin/test "$(stat -c %U:%G /data)" = "ubuntu:ubuntu"',
-}
-
-
-$config_file = '/etc/nginx/sites-available/talenthive.tech'
-$content_dir = '/data/web_static/current'
-$url_path = '/hbnb_static'
-
-
-
-$file_content = "server {\n  listen 80;\n  server_name talenthive.tech;\n  location $url_path {\n    alias $content_dir;\n    index index.html;\n  }\n}"
-
-file { $config_file:
-    content => $file_content,
-    require => Package['nginx'],
-}
-
-service { 'nginx':
-    ensure => running,
-    enable => true,
-    require => File[$config_file],
-    subscribe => File[$config_file],
-}
-
-
-
-
