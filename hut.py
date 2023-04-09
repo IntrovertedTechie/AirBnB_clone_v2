@@ -2,9 +2,9 @@
 """
 Fabric script that deletes out-of-date archives
 """
-from fabric.api import env, local, run
 from fabric.context_managers import lcd, cd
-from datetime import datetime
+from fabric.api import env, local, run
+
 
 env.hosts = ['54.85.99.227', '100.25.198.209']
 env.user = 'ubuntu'
