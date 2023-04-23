@@ -26,7 +26,7 @@ class State(BaseModel, Base):
     if getenv('HBNB_TYPE_STORAGE') != 'db':
         @property
         def cities(self):
-            """fs getter attribute that returns City instances"""
+        """returns the list of City objects from storage linked to the current State""" 
             values_city = models.storage.all("City").values()
             list_city = []
             for city in values_city:
